@@ -8,7 +8,18 @@
 #include <string.h>
 #include <sys/types.h>
 
-point_cloud_status point_cloudf_reserve(point_cloudf* cloud, size_t size) {
+PointCloudStatus point_cloudf_init(PointCloudf* cloud) {
+    if (cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
+    *cloud = (PointCloudf){0};
+    return POINT_CLOUD_OK;
+}
+PointCloudStatus point_cloudd_init(PointCloudd* cloud) {
+    if (cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
+    *cloud = (PointCloudd){0};
+    return POINT_CLOUD_OK;
+}
+
+PointCloudStatus point_cloudf_reserve(PointCloudf* cloud, size_t size) {
     if (!cloud) return POINT_CLOUD_INVALID_ARGUMENT;
     if (size <= cloud->capacity) return POINT_CLOUD_OK;
     size_t capacity =
@@ -20,13 +31,13 @@ point_cloud_status point_cloudf_reserve(point_cloudf* cloud, size_t size) {
     if (capacity > SIZE_MAX / sizeof(*cloud->points)) {
         return POINT_CLOUD_ALLOCATION_ERROR;
     }
-    point3f* points = realloc(cloud->points, capacity * sizeof(*cloud->points));
+    Point3f* points = realloc(cloud->points, capacity * sizeof(*cloud->points));
     if (!points) return POINT_CLOUD_ALLOCATION_ERROR;
     cloud->points = points;
     cloud->capacity = capacity;
     return POINT_CLOUD_OK;
 }
-point_cloud_status point_cloudd_reserve(point_cloudd* cloud, size_t size) {
+PointCloudStatus point_cloudd_reserve(PointCloudd* cloud, size_t size) {
     if (!cloud) return POINT_CLOUD_INVALID_ARGUMENT;
     if (size <= cloud->capacity) return POINT_CLOUD_OK;
     size_t capacity =
@@ -38,37 +49,37 @@ point_cloud_status point_cloudd_reserve(point_cloudd* cloud, size_t size) {
     if (capacity > SIZE_MAX / sizeof(*cloud->points)) {
         return POINT_CLOUD_ALLOCATION_ERROR;
     }
-    point3d* points = realloc(cloud->points, capacity * sizeof(*cloud->points));
+    Point3d* points = realloc(cloud->points, capacity * sizeof(*cloud->points));
     if (!points) return POINT_CLOUD_ALLOCATION_ERROR;
     cloud->points = points;
     cloud->capacity = capacity;
     return POINT_CLOUD_OK;
 }
 
-point_cloud_status point_cloudf_push(const point3f* pt, point_cloudf* cloud) {
+PointCloudStatus point_cloudf_push(const Point3f* pt, PointCloudf* cloud) {
     if (!pt || !cloud) return POINT_CLOUD_INVALID_ARGUMENT;
     if (cloud->count == SIZE_MAX) return POINT_CLOUD_ALLOCATION_ERROR;
-    point_cloud_status result = point_cloudf_reserve(cloud, cloud->count + 1);
+    PointCloudStatus result = point_cloudf_reserve(cloud, cloud->count + 1);
     if (result != POINT_CLOUD_OK) return result;
     cloud->points[cloud->count] = *pt;
     ++cloud->count;
     return POINT_CLOUD_OK;
 }
-point_cloud_status point_cloudd_push(const point3d* pt, point_cloudd* cloud) {
+PointCloudStatus point_cloudd_push(const Point3d* pt, PointCloudd* cloud) {
     if (!pt || !cloud) return POINT_CLOUD_INVALID_ARGUMENT;
     if (cloud->count == SIZE_MAX) return POINT_CLOUD_ALLOCATION_ERROR;
-    point_cloud_status result = point_cloudd_reserve(cloud, cloud->count + 1);
+    PointCloudStatus result = point_cloudd_reserve(cloud, cloud->count + 1);
     if (result != POINT_CLOUD_OK) return result;
     cloud->points[cloud->count] = *pt;
     ++cloud->count;
     return POINT_CLOUD_OK;
 }
 
-void point_cloudf_reset(point_cloudf* cloud) {
+void point_cloudf_reset(PointCloudf* cloud) {
     if (!cloud) return;
     cloud->count = 0;
 }
-void point_cloudd_reset(point_cloudd* cloud) {
+void point_cloudd_reset(PointCloudd* cloud) {
     if (!cloud) return;
     cloud->count = 0;
 }
@@ -87,7 +98,7 @@ static void strip_line_endings(char* line, ssize_t* len) {
     *len = n;
 }
 
-static point_cloud_status parse_header(const char* line) {
+static PointCloudStatus parse_header(const char* line) {
     if (!line) return POINT_CLOUD_INVALID_ARGUMENT;
     const char* cursor = line;
 
@@ -125,7 +136,7 @@ static point_cloud_status parse_header(const char* line) {
     return POINT_CLOUD_OK;
 }
 
-static point_cloud_status parse_linef(const char* line, point3f* out) {
+static PointCloudStatus parse_linef(const char* line, Point3f* out) {
     if (!line || !out) return POINT_CLOUD_INVALID_ARGUMENT;
     const char* cursor = line;
 
@@ -185,7 +196,7 @@ static point_cloud_status parse_linef(const char* line, point3f* out) {
     out->position[2] = z;
     return POINT_CLOUD_OK;
 }
-static point_cloud_status parse_lined(const char* line, point3d* out) {
+static PointCloudStatus parse_lined(const char* line, Point3d* out) {
     if (!line || !out) return POINT_CLOUD_INVALID_ARGUMENT;
     const char* cursor = line;
 
@@ -246,16 +257,17 @@ static point_cloud_status parse_lined(const char* line, point3d* out) {
     return POINT_CLOUD_OK;
 }
 
-point_cloud_status point_cloudf_from_csv(const char* path, point_cloudf* cloud,
-                                         size_t* err_line) {
+PointCloudStatus point_cloudf_from_csv(
+    const char* path, PointCloudf* cloud, size_t* err_line
+) {
     if (err_line) *err_line = 0;
     if (!path || !cloud) return POINT_CLOUD_INVALID_ARGUMENT;
 
     FILE* fp = fopen(path, "r");
     if (!fp) return POINT_CLOUD_IO_ERROR;
 
-    point_cloudf tmp = {0};
-    point_cloud_status result = POINT_CLOUD_OK;
+    PointCloudf tmp = {0};
+    PointCloudStatus result = POINT_CLOUD_OK;
 
     char* line = NULL;
     size_t line_capacity = 0;
@@ -278,7 +290,7 @@ point_cloud_status point_cloudf_from_csv(const char* path, point_cloudf* cloud,
         ++line_number;
         strip_line_endings(line, &len);
 
-        point3f pt = {0};
+        Point3f pt = {0};
         result = parse_linef(line, &pt);
         if (result != POINT_CLOUD_OK) {
             if (err_line) *err_line = line_number;
@@ -306,16 +318,17 @@ cleanup:
     *cloud = tmp;
     return POINT_CLOUD_OK;
 }
-point_cloud_status point_cloudd_from_csv(const char* path, point_cloudd* cloud,
-                                         size_t* err_line) {
+PointCloudStatus point_cloudd_from_csv(
+    const char* path, PointCloudd* cloud, size_t* err_line
+) {
     if (err_line) *err_line = 0;
     if (!path || !cloud) return POINT_CLOUD_INVALID_ARGUMENT;
 
     FILE* fp = fopen(path, "r");
     if (!fp) return POINT_CLOUD_IO_ERROR;
 
-    point_cloudd tmp = {0};
-    point_cloud_status result = POINT_CLOUD_OK;
+    PointCloudd tmp = {0};
+    PointCloudStatus result = POINT_CLOUD_OK;
 
     char* line = NULL;
     size_t line_capacity = 0;
@@ -338,7 +351,7 @@ point_cloud_status point_cloudd_from_csv(const char* path, point_cloudd* cloud,
         ++line_number;
         strip_line_endings(line, &len);
 
-        point3d pt = {0};
+        Point3d pt = {0};
         result = parse_lined(line, &pt);
         if (result != POINT_CLOUD_OK) {
             if (err_line) *err_line = line_number;
@@ -367,14 +380,119 @@ cleanup:
     return POINT_CLOUD_OK;
 }
 
-void point_cloudf_destroy(point_cloudf* cloud) {
+PointCloudStatus point_cloudf_to_csv(const char* path, const PointCloudf* cloud) {
+    if (path == NULL || cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
+    if (cloud->count > cloud->capacity ||
+        (cloud->count > 0 && cloud->points == NULL)) {
+        return POINT_CLOUD_INVALID_ARGUMENT;
+    }
+
+    for (size_t i = 0; i < cloud->count; ++i) {
+        const vec3d pos = {
+            cloud->points[i].position[0],
+            cloud->points[i].position[1],
+            cloud->points[i].position[2],
+        };
+
+        if (!isfinite(pos[0]) || !isfinite(pos[1]) || !isfinite(pos[2])) {
+            return POINT_CLOUD_INVALID_ARGUMENT;
+        }
+    }
+
+    FILE* file = fopen(path, "w");
+    if (file == NULL) return POINT_CLOUD_IO_ERROR;
+
+    PointCloudStatus status = POINT_CLOUD_OK;
+    int io_result = fprintf(file, "id,x,y,z\n");
+    if (io_result < 0) {
+        status = POINT_CLOUD_IO_ERROR;
+        goto cleanup;
+    }
+
+    for (size_t i = 0; i < cloud->count; ++i) {
+        const Point3f* point = &cloud->points[i];
+
+        io_result = fprintf(
+            file,
+            "%" PRIu64 ",%.17g,%.17g,%.17g\n",
+            point->id,
+            point->position[0],
+            point->position[1],
+            point->position[2]
+        );
+        if (io_result < 0) {
+            status = POINT_CLOUD_IO_ERROR;
+            break;
+        }
+    }
+
+cleanup:
+    if (fclose(file) != 0 && status == POINT_CLOUD_OK) {
+        status = POINT_CLOUD_IO_ERROR;
+    }
+    return status;
+}
+PointCloudStatus point_cloudd_to_csv(const char* path, const PointCloudd* cloud) {
+    if (path == NULL || cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
+    if (cloud->count > cloud->capacity ||
+        (cloud->count > 0 && cloud->points == NULL)) {
+        return POINT_CLOUD_INVALID_ARGUMENT;
+    }
+
+    for (size_t i = 0; i < cloud->count; ++i) {
+        const vec3d pos = {
+            cloud->points[i].position[0],
+            cloud->points[i].position[1],
+            cloud->points[i].position[2],
+        };
+
+        if (!isfinite(pos[0]) || !isfinite(pos[1]) || !isfinite(pos[2])) {
+            return POINT_CLOUD_INVALID_ARGUMENT;
+        }
+    }
+
+    FILE* file = fopen(path, "w");
+    if (file == NULL) return POINT_CLOUD_IO_ERROR;
+
+    PointCloudStatus status = POINT_CLOUD_OK;
+    int io_result = fprintf(file, "id,x,y,z\n");
+    if (io_result < 0) {
+        status = POINT_CLOUD_IO_ERROR;
+        goto cleanup;
+    }
+
+    for (size_t i = 0; i < cloud->count; ++i) {
+        const Point3d* point = &cloud->points[i];
+
+        io_result = fprintf(
+            file,
+            "%" PRIu64 ",%.17g,%.17g,%.17g\n",
+            point->id,
+            point->position[0],
+            point->position[1],
+            point->position[2]
+        );
+        if (io_result < 0) {
+            status = POINT_CLOUD_IO_ERROR;
+            break;
+        }
+    }
+
+cleanup:
+    if (fclose(file) != 0 && status == POINT_CLOUD_OK) {
+        status = POINT_CLOUD_IO_ERROR;
+    }
+    return status;
+}
+
+void point_cloudf_destroy(PointCloudf* cloud) {
     if (!cloud) return;
     if (cloud->points) free(cloud->points);
     cloud->points = NULL;
     cloud->count = 0;
     cloud->capacity = 0;
 }
-void point_cloudd_destroy(point_cloudd* cloud) {
+void point_cloudd_destroy(PointCloudd* cloud) {
     if (!cloud) return;
     if (cloud->points) free(cloud->points);
     cloud->points = NULL;
