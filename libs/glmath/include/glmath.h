@@ -69,7 +69,9 @@ void mat3d_mul_vec3d(const mat3d m, const vec3d v, vec3d out);
 int mat3d_orthonormalize(const mat3d m, mat3d out);
 void mat3d_to_quat(const mat3d m, quatd q);
 void mat3d_mul(const mat3d ma, const mat3d mb, mat3d out);
+#ifdef GLMATH_ENABLE_LAPACK
 int mat3d_project_so3(const mat3d m, mat3d out);
+#endif
 
 /* MAT4D */
 void mat4d_transpose(const mat4d m, mat4d out);

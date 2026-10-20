@@ -1,6 +1,8 @@
 #include "glmath.h"
 
+#ifdef GLMATH_ENABLE_LAPACK
 #include <lapacke.h>
+#endif
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -211,6 +213,7 @@ void mat3d_mul(const mat3d ma, const mat3d mb, mat3d out) {
 
     memcpy(out, result, sizeof(result));
 }
+#ifdef GLMATH_ENABLE_LAPACK
 int mat3d_project_so3(const mat3d m, mat3d out)
 {
     mat3d a;
@@ -268,6 +271,7 @@ int mat3d_project_so3(const mat3d m, mat3d out)
 
     return 0;
 }
+#endif
 
 void mat4d_transpose(const mat4d m, mat4d out) {
     mat4d tmp;
