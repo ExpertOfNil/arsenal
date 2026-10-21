@@ -259,3 +259,21 @@ target_link_libraries(arsenal PUBLIC
 
 message(STATUS "Arsenal components: ${components}")
 message(STATUS "Arsenal LAPACKE: ${ARSENAL_ENABLE_LAPACKE}")
+
+# Collect public headers from every library, including header-only libraries.
+file(GLOB arsenal_public_headers
+    CONFIGURE_DEPENDS
+    "${PROJECT_SOURCE_DIR}/libs/*/include/*.h"
+)
+
+set(arsenal_header_output_dir "${PROJECT_SOURCE_DIR}/include")
+
+add_custom_target(arsenal_headers ALL
+    COMMAND "${CMAKE_COMMAND}" -E make_directory
+        "${arsenal_header_output_dir}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        ${arsenal_public_headers}
+        "${arsenal_header_output_dir}"
+    COMMENT "Gathering Arsenal public headers into ${arsenal_header_output_dir}"
+    VERBATIM
+)
