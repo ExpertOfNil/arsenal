@@ -128,6 +128,8 @@ int mat3d_orthonormalize(const mat3d m, mat3d out);
 void mat3d_to_quatd(const mat3d m, quatd q);
 void mat3d_mul(const mat3d ma, const mat3d mb, mat3d out);
 #ifdef GLMATH_ENABLE_LAPACK
+int mat3f_svd(const mat3f m, mat3f u, vec3f singular_values, mat3f vt);
+int mat3d_svd(const mat3d m, mat3d u, vec3d singular_values, mat3d vt);
 int mat3f_project_so3(const mat3f m, mat3f out);
 int mat3d_project_so3(const mat3d m, mat3d out);
 #endif

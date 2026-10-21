@@ -427,6 +427,95 @@ void mat3d_mul(const mat3d ma, const mat3d mb, mat3d out) {
     memcpy(out, result, sizeof(result));
 }
 #ifdef GLMATH_ENABLE_LAPACK
+int mat3f_svd(const mat3f m, mat3f u, vec3f singular_values, mat3f vt) {
+    if (m == NULL || u == NULL || singular_values == NULL || vt == NULL) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    mat3f a;
+    mat3f result_u;
+    mat3f result_vt;
+    vec3f result_singular_values;
+    float superb[2];
+
+    // LAPACKE_sgesvd overwrites its input, so preserve m.
+    memcpy(a, m, sizeof(a));
+
+    lapack_int info = LAPACKE_sgesvd(
+        LAPACK_COL_MAJOR,
+        'A',
+        'A',
+        3,
+        3,
+        a,
+        3,
+        result_singular_values,
+        result_u,
+        3,
+        result_vt,
+        3,
+        superb
+    );
+
+    if (info != 0) return (int)info;
+
+    memcpy(u, result_u, sizeof(result_u));
+    memcpy(
+        singular_values, result_singular_values, sizeof(result_singular_values)
+    );
+    memcpy(vt, result_vt, sizeof(result_vt));
+
+    return 0;
+}
+int mat3d_svd(const mat3d m, mat3d u, vec3d singular_values, mat3d vt) {
+    if (m == NULL || u == NULL || singular_values == NULL || vt == NULL) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    mat3d a;
+    mat3d result_u;
+    mat3d result_vt;
+    vec3d result_singular_values;
+    double superb[2];
+
+    // LAPACKE_dgesvd overwrites its input, so preserve m.
+    memcpy(a, m, sizeof(a));
+
+    lapack_int info = LAPACKE_dgesvd(
+        LAPACK_COL_MAJOR,
+        'A',
+        'A',
+        3,
+        3,
+        a,
+        3,
+        result_singular_values,
+        result_u,
+        3,
+        result_vt,
+        3,
+        superb
+    );
+
+    if (info != 0) return (int)info;
+
+    memcpy(u, result_u, sizeof(result_u));
+    memcpy(
+        singular_values, result_singular_values, sizeof(result_singular_values)
+    );
+    memcpy(vt, result_vt, sizeof(result_vt));
+
+    return 0;
+}
+
 int mat3f_project_so3(const mat3f m, mat3f out) {
     mat3f a;
     mat3f u;
