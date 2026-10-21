@@ -7,6 +7,15 @@
 #include <stdint.h>
 #include <string.h>
 
+void vec3f_zero(vec3f v) {
+    static const vec3f vz = VEC3F_ZERO;
+    memcpy(v, vz, sizeof(vec3f));
+}
+void vec3d_zero(vec3d v) {
+    static const vec3d vz = VEC3D_ZERO;
+    memcpy(v, vz, sizeof(vec3d));
+}
+
 void vec3f_add(const vec3f va, const vec3f vb, vec3f out) {
     out[0] = va[0] + vb[0];
     out[1] = va[1] + vb[1];
@@ -84,6 +93,15 @@ void vec3d_cross(const vec3d va, const vec3d vb, vec3d out) {
     out[2] = z;
 }
 
+void vec4f_zero(vec4f v) {
+    static const vec4f vz = VEC4F_ZERO;
+    memcpy(v, vz, sizeof(vec4f));
+}
+void vec4d_zero(vec4d v) {
+    static const vec4d vz = VEC4D_ZERO;
+    memcpy(v, vz, sizeof(vec4d));
+}
+
 float vec4f_dot(const vec4f va, const vec4f vb) {
     return va[0] * vb[0] + va[1] * vb[1] + va[2] * vb[2] + va[3] * vb[3];
 }
@@ -115,6 +133,15 @@ int vec4d_normalize(vec4d v) {
     v[2] /= mag;
     v[3] /= mag;
     return 0;
+}
+
+void quatf_identity(quatf q) {
+    static const quatf identity = QUATF_IDENTITY;
+    memcpy(q, identity, sizeof(quatf));
+}
+void quatd_identity(quatd q) {
+    static const quatd identity = QUATD_IDENTITY;
+    memcpy(q, identity, sizeof(quatd));
 }
 
 int quatf_normalize(quatf q) { return vec4f_normalize(q); }
@@ -226,6 +253,15 @@ void quatd_from_mat3d(const mat3d m, quatd q) {
     }
 }
 
+void mat3f_identity(mat3f m) {
+    static const mat3f identity = MAT3F_IDENTITY;
+    memcpy(m, identity, sizeof(mat3f));
+}
+void mat3d_identity(mat3d m) {
+    static const mat3d identity = MAT3D_IDENTITY;
+    memcpy(m, identity, sizeof(mat3d));
+}
+
 float mat3f_det(const mat3f m) {
     float a = m[0] * m[4] * m[8];
     float b = m[3] * m[7] * m[2];
@@ -272,6 +308,67 @@ void mat3d_transpose(const mat3d m, mat3d out) {
     tmp[8] = m[8];
 
     memcpy(out, tmp, sizeof(mat3d));
+}
+
+int mat3f_inverse(const mat3f m, mat3f out) {
+    if (m == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    const double det = mat3f_det(m);
+    if (!isfinite(det) || det == 0.0) return -1;
+    const double inv_det = 1.0 / det;
+    mat3f result;
+
+    result[0] = (m[4] * m[8] - m[7] * m[5]) * inv_det;
+    result[3] = (m[6] * m[5] - m[3] * m[8]) * inv_det;
+    result[6] = (m[3] * m[7] - m[6] * m[4]) * inv_det;
+
+    result[1] = (m[7] * m[2] - m[1] * m[8]) * inv_det;
+    result[4] = (m[0] * m[8] - m[6] * m[2]) * inv_det;
+    result[7] = (m[6] * m[1] - m[0] * m[7]) * inv_det;
+
+    result[2] = (m[1] * m[5] - m[4] * m[2]) * inv_det;
+    result[5] = (m[3] * m[2] - m[0] * m[5]) * inv_det;
+    result[8] = (m[0] * m[4] - m[3] * m[1]) * inv_det;
+
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(result[i])) return -1;
+    }
+
+    memcpy(out, result, sizeof(result));
+    return 0;
+}
+int mat3d_inverse(const mat3d m, mat3d out) {
+    if (m == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    const double det = mat3d_det(m);
+    if (!isfinite(det) || det == 0.0) return -1;
+    const double inv_det = 1.0 / det;
+    mat3d result;
+
+    result[0] = (m[4] * m[8] - m[7] * m[5]) * inv_det;
+    result[3] = (m[6] * m[5] - m[3] * m[8]) * inv_det;
+    result[6] = (m[3] * m[7] - m[6] * m[4]) * inv_det;
+
+    result[1] = (m[7] * m[2] - m[1] * m[8]) * inv_det;
+    result[4] = (m[0] * m[8] - m[6] * m[2]) * inv_det;
+    result[7] = (m[6] * m[1] - m[0] * m[7]) * inv_det;
+
+    result[2] = (m[1] * m[5] - m[4] * m[2]) * inv_det;
+    result[5] = (m[3] * m[2] - m[0] * m[5]) * inv_det;
+    result[8] = (m[0] * m[4] - m[3] * m[1]) * inv_det;
+
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(result[i])) return -1;
+    }
+
+    memcpy(out, result, sizeof(result));
+    return 0;
 }
 
 void mat3f_from_quatf(const quatf q, mat3f m) {
@@ -340,55 +437,75 @@ void mat3f_to_quatf(const mat3f m, quatf q) { quatf_from_mat3f(m, q); }
 void mat3d_to_quatd(const mat3d m, quatd q) { quatd_from_mat3d(m, q); }
 
 int mat3f_orthonormalize(const mat3f m, mat3f out) {
-    mat3f tmp;
-    memcpy(tmp, MAT3F_IDENTITY, sizeof(mat3f));
+    if (m == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
     vec3f x_axis = {m[0], m[1], m[2]};
     vec3f y_axis = {m[3], m[4], m[5]};
-    vec3f z_axis = {m[6], m[7], m[8]};
-    // Ensure x-axis is orthogonal to the yz-plane
-    vec3f_cross(y_axis, z_axis, x_axis);
+    vec3f z_axis;
+
     if (vec3f_normalize(x_axis) != 0) return -1;
-    // Ensure y-axis is orthogonal to the xz-plane
-    vec3f_cross(z_axis, x_axis, y_axis);
+    const double projection = vec3f_dot(y_axis, x_axis);
+    y_axis[0] -= projection * x_axis[0];
+    y_axis[1] -= projection * x_axis[1];
+    y_axis[2] -= projection * x_axis[2];
+
     if (vec3f_normalize(y_axis) != 0) return -1;
-    // Ensure z-axis is normalized
+
+    vec3f_cross(x_axis, y_axis, z_axis);
     if (vec3f_normalize(z_axis) != 0) return -1;
-    tmp[0] = x_axis[0];
-    tmp[1] = x_axis[1];
-    tmp[2] = x_axis[2];
-    tmp[3] = y_axis[0];
-    tmp[4] = y_axis[1];
-    tmp[5] = y_axis[2];
-    tmp[6] = z_axis[0];
-    tmp[7] = z_axis[1];
-    tmp[8] = z_axis[2];
-    memcpy(out, tmp, sizeof(mat3f));
+
+    mat3f result = {
+        x_axis[0],
+        x_axis[1],
+        x_axis[2],
+        y_axis[0],
+        y_axis[1],
+        y_axis[2],
+        z_axis[0],
+        z_axis[1],
+        z_axis[2]
+    };
+
+    memcpy(out, result, sizeof(result));
     return 0;
 }
 int mat3d_orthonormalize(const mat3d m, mat3d out) {
-    mat3d tmp;
-    memcpy(tmp, MAT3D_IDENTITY, sizeof(mat3d));
+    if (m == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
     vec3d x_axis = {m[0], m[1], m[2]};
     vec3d y_axis = {m[3], m[4], m[5]};
-    vec3d z_axis = {m[6], m[7], m[8]};
-    // Ensure x-axis is orthogonal to the yz-plane
-    vec3d_cross(y_axis, z_axis, x_axis);
+    vec3d z_axis;
+
     if (vec3d_normalize(x_axis) != 0) return -1;
-    // Ensure y-axis is orthogonal to the xz-plane
-    vec3d_cross(z_axis, x_axis, y_axis);
+    const double projection = vec3d_dot(y_axis, x_axis);
+    y_axis[0] -= projection * x_axis[0];
+    y_axis[1] -= projection * x_axis[1];
+    y_axis[2] -= projection * x_axis[2];
+
     if (vec3d_normalize(y_axis) != 0) return -1;
-    // Ensure z-axis is normalized
+
+    vec3d_cross(x_axis, y_axis, z_axis);
     if (vec3d_normalize(z_axis) != 0) return -1;
-    tmp[0] = x_axis[0];
-    tmp[1] = x_axis[1];
-    tmp[2] = x_axis[2];
-    tmp[3] = y_axis[0];
-    tmp[4] = y_axis[1];
-    tmp[5] = y_axis[2];
-    tmp[6] = z_axis[0];
-    tmp[7] = z_axis[1];
-    tmp[8] = z_axis[2];
-    memcpy(out, tmp, sizeof(mat3d));
+
+    mat3d result = {
+        x_axis[0],
+        x_axis[1],
+        x_axis[2],
+        y_axis[0],
+        y_axis[1],
+        y_axis[2],
+        z_axis[0],
+        z_axis[1],
+        z_axis[2]
+    };
+
+    memcpy(out, result, sizeof(result));
     return 0;
 }
 
@@ -515,27 +632,19 @@ int mat3d_svd(const mat3d m, mat3d u, vec3d singular_values, mat3d vt) {
 
     return 0;
 }
+#endif
 
+#ifdef GLMATH_ENABLE_LAPACK
 int mat3f_project_so3(const mat3f m, mat3f out) {
-    mat3f a;
+    if (out == NULL) return -1;
+
     mat3f u;
     mat3f vt;
     mat3f result;
+    vec3f singular_values;
 
-    float singular_values[3];
-    float superb[2];
-
-    for (size_t i = 0; i < 9; ++i) {
-        if (!isfinite(m[i])) return -1;
-    }
-
-    /* LAPACKE_dgesvd overwrites its input. */
-    memcpy(a, m, sizeof(a));
-
-    lapack_int info = LAPACKE_sgesvd(LAPACK_COL_MAJOR, 'A', 'A', 3, 3, a, 3,
-                                     singular_values, u, 3, vt, 3, superb);
-
-    if (info != 0) return (int)info;
+    int status = mat3f_svd(m, u, singular_values, vt);
+    if (status != 0) return status;
 
     /*
      * det(U V^T) = det(U) det(V^T).
@@ -558,25 +667,15 @@ int mat3f_project_so3(const mat3f m, mat3f out) {
     return 0;
 }
 int mat3d_project_so3(const mat3d m, mat3d out) {
-    mat3d a;
+    if (out == NULL) return -1;
+
     mat3d u;
     mat3d vt;
     mat3d result;
+    vec3d singular_values;
 
-    double singular_values[3];
-    double superb[2];
-
-    for (size_t i = 0; i < 9; ++i) {
-        if (!isfinite(m[i])) return -1;
-    }
-
-    /* LAPACKE_dgesvd overwrites its input. */
-    memcpy(a, m, sizeof(a));
-
-    lapack_int info = LAPACKE_dgesvd(LAPACK_COL_MAJOR, 'A', 'A', 3, 3, a, 3,
-                                     singular_values, u, 3, vt, 3, superb);
-
-    if (info != 0) return (int)info;
+    int status = mat3d_svd(m, u, singular_values, vt);
+    if (status != 0) return status;
 
     /*
      * det(U V^T) = det(U) det(V^T).
@@ -599,6 +698,15 @@ int mat3d_project_so3(const mat3d m, mat3d out) {
     return 0;
 }
 #endif
+
+void mat4f_identity(mat4f m) {
+    static const mat4f identity = MAT4F_IDENTITY;
+    memcpy(m, identity, sizeof(mat4f));
+}
+void mat4d_identity(mat4d m) {
+    static const mat4d identity = MAT4D_IDENTITY;
+    memcpy(m, identity, sizeof(mat4d));
+}
 
 void mat4f_transpose(const mat4f m, mat4f out) {
     mat4f tmp;
@@ -641,6 +749,37 @@ void mat4d_transpose(const mat4d m, mat4d out) {
     memcpy(out, tmp, sizeof(mat4d));
 }
 
+void mat4f_mul(const mat4f ma, const mat4f mb, mat4f out) {
+    mat4f result;
+
+    for (size_t col = 0; col < 4; ++col) {
+        for (size_t row = 0; row < 4; ++row) {
+            float sum = 0.0;
+            for (size_t k = 0; k < 4; ++k) {
+                sum += ma[row + 4 * k] * mb[k + 4 * col];
+            }
+            result[row + 4 * col] = sum;
+        }
+    }
+
+    memcpy(out, result, sizeof(result));
+}
+void mat4d_mul(const mat4d ma, const mat4d mb, mat4d out) {
+    mat4d result;
+
+    for (size_t col = 0; col < 4; ++col) {
+        for (size_t row = 0; row < 4; ++row) {
+            double sum = 0.0;
+            for (size_t k = 0; k < 4; ++k) {
+                sum += ma[row + 4 * k] * mb[k + 4 * col];
+            }
+            result[row + 4 * col] = sum;
+        }
+    }
+
+    memcpy(out, result, sizeof(result));
+}
+
 void mat4f_mul_vec4f(const mat4f m, const vec4f v, vec4f out) {
     vec4f tmp;
     tmp[0] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12] * v[3];
@@ -658,9 +797,71 @@ void mat4d_mul_vec4d(const mat4d m, const vec4d v, vec4d out) {
     memcpy(out, tmp, sizeof(vec4d));
 }
 
+#ifdef GLMATH_ENABLE_LAPACK
+int mat4f_inverse_cholesky(const mat4f m, mat4f out) {
+    if (m == NULL || out == NULL) return -1;
+
+    mat4f result;
+    for (size_t i = 0; i < 16; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    // LAPACK overwrites the input.  On success: M = L * L^T
+    memcpy(result, m, sizeof(result));
+    lapack_int info = LAPACKE_spotrf(LAPACK_COL_MAJOR, 'L', 4, result, 4);
+    if (info != 0) return (int)info;
+
+    // Compute M^{-1} from its Cholesky factorization
+    info = LAPACKE_spotri(LAPACK_COL_MAJOR, 'L', 4, result, 4);
+    if (info != 0) return (int)info;
+
+    for (size_t col = 0; col < 4; ++col) {
+        for (size_t row = 0; row < col; ++row) {
+            result[row + 4 * col] = result[col + 4 * row];
+        }
+    }
+
+    for (size_t i = 0; i < 16; ++i) {
+        if (!isfinite(result[i])) return -1;
+    }
+
+    memcpy(out, result, sizeof(result));
+    return 0;
+}
+int mat4d_inverse_cholesky(const mat4d m, mat4d out) {
+    if (m == NULL || out == NULL) return -1;
+
+    mat4d result;
+    for (size_t i = 0; i < 16; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    // LAPACK overwrites the input.  On success: M = L * L^T
+    memcpy(result, m, sizeof(result));
+    lapack_int info = LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', 4, result, 4);
+    if (info != 0) return (int)info;
+
+    // Compute M^{-1} from its Cholesky factorization
+    info = LAPACKE_dpotri(LAPACK_COL_MAJOR, 'L', 4, result, 4);
+    if (info != 0) return (int)info;
+
+    for (size_t col = 0; col < 4; ++col) {
+        for (size_t row = 0; row < col; ++row) {
+            result[row + 4 * col] = result[col + 4 * row];
+        }
+    }
+
+    for (size_t i = 0; i < 16; ++i) {
+        if (!isfinite(result[i])) return -1;
+    }
+
+    memcpy(out, result, sizeof(result));
+    return 0;
+}
+#endif
+
 void mat4f_inverse_rigid(const mat4f m, mat4f out) {
-    mat4f tmp;
-    memcpy(tmp, MAT4F_IDENTITY, sizeof(mat4f));
+    mat4f tmp = MAT4F_IDENTITY;
 
     vec3f x = {m[0], m[1], m[2]};
     vec3f y = {m[4], m[5], m[6]};
@@ -684,8 +885,7 @@ void mat4f_inverse_rigid(const mat4f m, mat4f out) {
     memcpy(out, tmp, sizeof(mat4f));
 }
 void mat4d_inverse_rigid(const mat4d m, mat4d out) {
-    mat4d tmp;
-    memcpy(tmp, MAT4D_IDENTITY, sizeof(mat4d));
+    mat4d tmp = MAT4D_IDENTITY;
 
     vec3d x = {m[0], m[1], m[2]};
     vec3d y = {m[4], m[5], m[6]};
@@ -709,8 +909,9 @@ void mat4d_inverse_rigid(const mat4d m, mat4d out) {
     memcpy(out, tmp, sizeof(mat4d));
 }
 
-int mat4f_look_dir(const vec3f eye, const vec3f direction, const vec3f up,
-                   mat4f m) {
+int mat4f_look_dir(
+    const vec3f eye, const vec3f direction, const vec3f up, mat4f m
+) {
     vec3f f;
     memcpy(f, direction, sizeof(vec3f));
     if (vec3f_normalize(f) != 0) return -1;
@@ -720,7 +921,7 @@ int mat4f_look_dir(const vec3f eye, const vec3f direction, const vec3f up,
     vec3f u;
     vec3f_cross(r, f, u);
 
-    memcpy(m, MAT4F_IDENTITY, sizeof(mat4f));
+    mat4f_identity(m);
     m[0] = r[0];
     m[4] = r[1];
     m[8] = r[2];
@@ -738,8 +939,9 @@ int mat4f_look_dir(const vec3f eye, const vec3f direction, const vec3f up,
     m[14] = vec3f_dot(f, eye);
     return 0;
 }
-int mat4d_look_dir(const vec3d eye, const vec3d direction, const vec3d up,
-                   mat4d m) {
+int mat4d_look_dir(
+    const vec3d eye, const vec3d direction, const vec3d up, mat4d m
+) {
     vec3d f;
     memcpy(f, direction, sizeof(vec3d));
     if (vec3d_normalize(f) != 0) return -1;
@@ -749,7 +951,7 @@ int mat4d_look_dir(const vec3d eye, const vec3d direction, const vec3d up,
     vec3d u;
     vec3d_cross(r, f, u);
 
-    memcpy(m, MAT4D_IDENTITY, sizeof(mat4d));
+    mat4d_identity(m);
     m[0] = r[0];
     m[4] = r[1];
     m[8] = r[2];
@@ -768,74 +970,87 @@ int mat4d_look_dir(const vec3d eye, const vec3d direction, const vec3d up,
     return 0;
 }
 
-int mat4f_look_at(const vec3f eye, const vec3f target, const vec3f up,
-                  mat4f out) {
+int mat4f_look_at(
+    const vec3f eye, const vec3f target, const vec3f up, mat4f out
+) {
     vec3f direction;
     vec3f_sub(target, eye, direction);
     return mat4f_look_dir(eye, direction, up, out);
 }
-int mat4d_look_at(const vec3d eye, const vec3d target, const vec3d up,
-                  mat4d out) {
+int mat4d_look_at(
+    const vec3d eye, const vec3d target, const vec3d up, mat4d out
+) {
     vec3d direction;
     vec3d_sub(target, eye, direction);
     return mat4d_look_dir(eye, direction, up, out);
 }
 
 int mat4f_orthonormalize(const mat4f m, mat4f out) {
-    mat4f tmp;
-    memcpy(tmp, MAT4F_IDENTITY, sizeof(mat4f));
-    vec3f x_axis = {m[0], m[1], m[2]};
-    vec3f y_axis = {m[4], m[5], m[6]};
-    vec3f z_axis = {m[8], m[9], m[10]};
-    // Ensure x-axis is orthogonal to the yz-plane
-    vec3f_cross(y_axis, z_axis, x_axis);
-    if (vec3f_normalize(x_axis) != 0) return -1;
-    // Ensure y-axis is orthogonal to the xz-plane
-    vec3f_cross(z_axis, x_axis, y_axis);
-    if (vec3f_normalize(y_axis) != 0) return -1;
-    // Ensure z-axis is normalized
-    if (vec3f_normalize(z_axis) != 0) return -1;
-    tmp[0] = x_axis[0];
-    tmp[1] = x_axis[1];
-    tmp[2] = x_axis[2];
-    tmp[4] = y_axis[0];
-    tmp[5] = y_axis[1];
-    tmp[6] = y_axis[2];
-    tmp[8] = z_axis[0];
-    tmp[9] = z_axis[1];
-    tmp[10] = z_axis[2];
-    tmp[12] = m[12];
-    tmp[13] = m[13];
-    tmp[14] = m[14];
-    memcpy(out, tmp, sizeof(mat4f));
+    if (m == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 16; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    const mat3f linear = {
+        m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]
+    };
+
+    mat3f rotation;
+    if (mat3f_orthonormalize(linear, rotation) != 0) return -1;
+
+    mat4f result = MAT4F_IDENTITY;
+
+    result[0] = rotation[0];
+    result[1] = rotation[1];
+    result[2] = rotation[2];
+
+    result[4] = rotation[3];
+    result[5] = rotation[4];
+    result[6] = rotation[5];
+
+    result[8] = rotation[6];
+    result[9] = rotation[7];
+    result[10] = rotation[8];
+
+    result[12] = m[12];
+    result[13] = m[13];
+    result[14] = m[14];
+
+    memcpy(out, result, sizeof(result));
     return 0;
 }
 int mat4d_orthonormalize(const mat4d m, mat4d out) {
-    mat4d tmp;
-    memcpy(tmp, MAT4D_IDENTITY, sizeof(mat4d));
-    vec3d x_axis = {m[0], m[1], m[2]};
-    vec3d y_axis = {m[4], m[5], m[6]};
-    vec3d z_axis = {m[8], m[9], m[10]};
-    // Ensure x-axis is orthogonal to the yz-plane
-    vec3d_cross(y_axis, z_axis, x_axis);
-    if (vec3d_normalize(x_axis) != 0) return -1;
-    // Ensure y-axis is orthogonal to the xz-plane
-    vec3d_cross(z_axis, x_axis, y_axis);
-    if (vec3d_normalize(y_axis) != 0) return -1;
-    // Ensure z-axis is normalized
-    if (vec3d_normalize(z_axis) != 0) return -1;
-    tmp[0] = x_axis[0];
-    tmp[1] = x_axis[1];
-    tmp[2] = x_axis[2];
-    tmp[4] = y_axis[0];
-    tmp[5] = y_axis[1];
-    tmp[6] = y_axis[2];
-    tmp[8] = z_axis[0];
-    tmp[9] = z_axis[1];
-    tmp[10] = z_axis[2];
-    tmp[12] = m[12];
-    tmp[13] = m[13];
-    tmp[14] = m[14];
-    memcpy(out, tmp, sizeof(mat4d));
+    if (m == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 16; ++i) {
+        if (!isfinite(m[i])) return -1;
+    }
+
+    const mat3d linear = {
+        m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]
+    };
+
+    mat3d rotation;
+    if (mat3d_orthonormalize(linear, rotation) != 0) return -1;
+
+    mat4d result = MAT4D_IDENTITY;
+
+    result[0] = rotation[0];
+    result[1] = rotation[1];
+    result[2] = rotation[2];
+
+    result[4] = rotation[3];
+    result[5] = rotation[4];
+    result[6] = rotation[5];
+
+    result[8] = rotation[6];
+    result[9] = rotation[7];
+    result[10] = rotation[8];
+
+    result[12] = m[12];
+    result[13] = m[13];
+    result[14] = m[14];
+
+    memcpy(out, result, sizeof(result));
     return 0;
 }
+
