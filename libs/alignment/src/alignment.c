@@ -11,7 +11,7 @@ static int point_is_finite(const Point3d* point) {
 }
 
 static AlignmentStatus validate_correspondences(
-    const PointCloud* source, const PointCloud* target, size_t min_count
+    const PointCloudd* source, const PointCloudd* target, size_t min_count
 ) {
     if (source == NULL || target == NULL) return ALIGNMENT_INVALID_ARGUMENT;
     if ((source->count > 0 && source->points == NULL) ||
@@ -37,7 +37,7 @@ static AlignmentStatus validate_correspondences(
     return ALIGNMENT_OK;
 }
 
-static void calculate_centroid(const PointCloud* cloud, vec3d centroid) {
+static void calculate_centroid(const PointCloudd* cloud, vec3d centroid) {
     centroid[0] = 0.0;
     centroid[1] = 0.0;
     centroid[2] = 0.0;
@@ -55,8 +55,8 @@ static void calculate_centroid(const PointCloud* cloud, vec3d centroid) {
 }
 
 static void calculate_cross_covariance(
-    const PointCloud* source,
-    const PointCloud* target,
+    const PointCloudd* source,
+    const PointCloudd* target,
     const vec3d source_centroid,
     const vec3d target_centroid,
     mat3d covariance
@@ -81,7 +81,7 @@ static void calculate_cross_covariance(
 }
 
 static int calculate_regression_matrices(
-    const PointCloud* source, const PointCloud* target, mat4d ptp, mat4d ptq
+    const PointCloudd* source, const PointCloudd* target, mat4d ptp, mat4d ptq
 ) {
     if (source == NULL || target == NULL || ptp == NULL || ptq == NULL) {
         return -1;
@@ -143,7 +143,7 @@ static int accumulate_scaled_square(
 }
 
 AlignmentStatus point_cloud_align_kabsch(
-    const PointCloud* source, const PointCloud* target, AlignmentTransform* out
+    const PointCloudd* source, const PointCloudd* target, AlignmentTransform* out
 ) {
     if (out == NULL) return ALIGNMENT_INVALID_ARGUMENT;
 
@@ -203,7 +203,7 @@ AlignmentStatus point_cloud_align_kabsch(
 }
 
 AlignmentStatus point_cloud_align_normal_equations(
-    const PointCloud* source, const PointCloud* target, AlignmentTransform* out
+    const PointCloudd* source, const PointCloudd* target, AlignmentTransform* out
 ) {
     if (out == NULL) return ALIGNMENT_INVALID_ARGUMENT;
 
@@ -266,8 +266,8 @@ AlignmentStatus point_cloud_align_normal_equations(
 }
 
 AlignmentStatus point_cloud_assess_alignment(
-    const PointCloud* source,
-    const PointCloud* target,
+    const PointCloudd* source,
+    const PointCloudd* target,
     const AlignmentTransform* transform,
     AlignmentFitMetrics* out
 ) {

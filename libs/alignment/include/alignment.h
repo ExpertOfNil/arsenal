@@ -34,16 +34,16 @@ typedef struct AlignmentTransformError {
 } AlignmentTransformError;
 
 AlignmentStatus point_cloud_align_kabsch(
-    const PointCloud* source, const PointCloud* target, AlignmentTransform* out
+    const PointCloudd* source, const PointCloudd* target, AlignmentTransform* out
 );
 
 AlignmentStatus point_cloud_align_normal_equations(
-    const PointCloud* source, const PointCloud* target, AlignmentTransform* out
+    const PointCloudd* source, const PointCloudd* target, AlignmentTransform* out
 );
 
 AlignmentStatus point_cloud_assess_alignment(
-    const PointCloud* source,
-    const PointCloud* target,
+    const PointCloudd* source,
+    const PointCloudd* target,
     const AlignmentTransform* transform,
     AlignmentFitMetrics* out
 );
