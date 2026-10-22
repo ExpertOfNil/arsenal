@@ -1,12 +1,82 @@
 #include "point_cloud.h"
 
 #include <errno.h>
+#include <float.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+PointCloudStatus point_cloud_d_to_f(const PointCloudd* src, PointCloudf* dst) {
+    if (src == NULL || dst == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
+    if (src->count > src->capacity ||
+        (src->count != 0 && src->points == NULL)) {
+        return POINT_CLOUD_INVALID_ARGUMENT;
+    }
+    PointCloudf candidate;
+    PointCloudStatus status = point_cloudf_init(&candidate);
+    if (status != POINT_CLOUD_OK) return status;
+    status = point_cloudf_reserve(&candidate, src->count);
+    if (status != POINT_CLOUD_OK) return status;
+
+    for (size_t i = 0; i < src->count; ++i) {
+        const Point3d* src_pt = &src->points[i];
+        Point3f* dst_pt = &candidate.points[i];
+        dst_pt->id = src_pt->id;
+        for (size_t j = 0; j < 3; ++j) {
+            const double component = src_pt->position[j];
+            if (!isfinite(component) || component < -FLT_MAX ||
+                component > FLT_MAX) {
+                point_cloudf_destroy(&candidate);
+                return POINT_CLOUD_RANGE_ERROR;
+            }
+        }
+        dst_pt->position[0] = (float)src_pt->position[0];
+        dst_pt->position[1] = (float)src_pt->position[1];
+        dst_pt->position[2] = (float)src_pt->position[2];
+    }
+    candidate.count = src->count;
+
+    point_cloudf_destroy(dst);
+    *dst = candidate;
+    return POINT_CLOUD_OK;
+}
+
+PointCloudStatus point_cloud_f_to_d(const PointCloudf* src, PointCloudd* dst) {
+    if (src == NULL || dst == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
+    if (src->count > src->capacity ||
+        (src->count != 0 && src->points == NULL)) {
+        return POINT_CLOUD_INVALID_ARGUMENT;
+    }
+    PointCloudd candidate;
+    PointCloudStatus status = point_cloudd_init(&candidate);
+    if (status != POINT_CLOUD_OK) return status;
+    status = point_cloudd_reserve(&candidate, src->count);
+    if (status != POINT_CLOUD_OK) return status;
+
+    for (size_t i = 0; i < src->count; ++i) {
+        const Point3f* src_pt = &src->points[i];
+        Point3d* dst_pt = &candidate.points[i];
+        dst_pt->id = src_pt->id;
+        for (size_t j = 0; j < 3; ++j) {
+            const float component = src_pt->position[j];
+            if (!isfinite(component)) {
+                point_cloudd_destroy(&candidate);
+                return POINT_CLOUD_RANGE_ERROR;
+            }
+        }
+        dst_pt->position[0] = (double)src_pt->position[0];
+        dst_pt->position[1] = (double)src_pt->position[1];
+        dst_pt->position[2] = (double)src_pt->position[2];
+    }
+    candidate.count = src->count;
+
+    point_cloudd_destroy(dst);
+    *dst = candidate;
+    return POINT_CLOUD_OK;
+}
 
 PointCloudStatus point_cloudf_init(PointCloudf* cloud) {
     if (cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
@@ -380,7 +450,9 @@ cleanup:
     return POINT_CLOUD_OK;
 }
 
-PointCloudStatus point_cloudf_to_csv(const char* path, const PointCloudf* cloud) {
+PointCloudStatus point_cloudf_to_csv(
+    const char* path, const PointCloudf* cloud
+) {
     if (path == NULL || cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
     if (cloud->count > cloud->capacity ||
         (cloud->count > 0 && cloud->points == NULL)) {
@@ -432,7 +504,9 @@ cleanup:
     }
     return status;
 }
-PointCloudStatus point_cloudd_to_csv(const char* path, const PointCloudd* cloud) {
+PointCloudStatus point_cloudd_to_csv(
+    const char* path, const PointCloudd* cloud
+) {
     if (path == NULL || cloud == NULL) return POINT_CLOUD_INVALID_ARGUMENT;
     if (cloud->count > cloud->capacity ||
         (cloud->count > 0 && cloud->points == NULL)) {

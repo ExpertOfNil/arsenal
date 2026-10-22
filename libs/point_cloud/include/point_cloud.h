@@ -37,6 +37,9 @@ typedef enum {
     POINT_CLOUD_ALLOCATION_ERROR
 } PointCloudStatus;
 
+PointCloudStatus point_cloud_d_to_f(const PointCloudd* src, PointCloudf* dst);
+PointCloudStatus point_cloud_f_to_d(const PointCloudf* src, PointCloudd* dst);
+
 PointCloudStatus point_cloudf_init(PointCloudf* cloud);
 PointCloudStatus point_cloudf_reserve(PointCloudf* cloud, size_t size);
 PointCloudStatus point_cloudf_push(const Point3f* pt, PointCloudf* cloud);
