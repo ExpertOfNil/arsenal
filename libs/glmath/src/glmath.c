@@ -253,6 +253,82 @@ void quatd_from_mat3d(const mat3d m, quatd q) {
     }
 }
 
+
+void quatf_slerp(const quatf start, const quatf end, float t, quatf out) {
+    quatf a;
+    memcpy(a, start, sizeof(a));
+    quatf b;
+    memcpy(b, end, sizeof(b));
+    quatf result = QUATF_IDENTITY;
+
+    float dot = vec4f_dot(a, b);
+
+    // Choose the shorter arc between -q and q
+    if (dot < 0.0) {
+        for (size_t i = 0; i < 4; ++i) b[i] = -b[i];
+        dot = -dot;
+    }
+
+    // Avoid ill-conditioned sin(theta) by doing nlerp instead
+    if (dot > 0.9995) {
+        for (size_t i = 0; i < 4; ++i) {
+            result[i] = (1.0 - t) * a[i] + t * b[i];
+        }
+
+        (void)quatf_normalize(result);
+    } else {
+        // Guard agains rounding errors
+        if (dot > 1.0) dot = 1.0;
+        const float theta = acos(dot);
+        const float inv_sin_theta = 1.0 / sin(theta);
+        const float wa = sin((1.0 - t) * theta) * inv_sin_theta;
+        const float wb = sin(t * theta) * inv_sin_theta;
+
+        for (size_t i = 0; i < 4; ++i) {
+            result[i] = wa * a[i] + wb * b[i];
+        }
+    }
+
+    memcpy(out, result, sizeof(result));
+}
+void quatd_slerp(const quatd start, const quatd end, double t, quatd out) {
+    quatd a;
+    memcpy(a, start, sizeof(a));
+    quatd b;
+    memcpy(b, end, sizeof(b));
+    quatd result = QUATD_IDENTITY;
+
+    double dot = vec4d_dot(a, b);
+
+    // Choose the shorter arc between -q and q
+    if (dot < 0.0) {
+        for (size_t i = 0; i < 4; ++i) b[i] = -b[i];
+        dot = -dot;
+    }
+
+    // Avoid ill-conditioned sin(theta) by doing nlerp instead
+    if (dot > 0.9995) {
+        for (size_t i = 0; i < 4; ++i) {
+            result[i] = (1.0 - t) * a[i] + t * b[i];
+        }
+
+        (void)quatd_normalize(result);
+    } else {
+        // Guard agains rounding errors
+        if (dot > 1.0) dot = 1.0;
+        const double theta = acos(dot);
+        const double inv_sin_theta = 1.0 / sin(theta);
+        const double wa = sin((1.0 - t) * theta) * inv_sin_theta;
+        const double wb = sin(t * theta) * inv_sin_theta;
+
+        for (size_t i = 0; i < 4; ++i) {
+            result[i] = wa * a[i] + wb * b[i];
+        }
+    }
+
+    memcpy(out, result, sizeof(result));
+}
+
 void mat3f_identity(mat3f m) {
     static const mat3f identity = MAT3F_IDENTITY;
     memcpy(m, identity, sizeof(mat3f));
@@ -543,6 +619,7 @@ void mat3d_mul(const mat3d ma, const mat3d mb, mat3d out) {
 
     memcpy(out, result, sizeof(result));
 }
+
 #ifdef GLMATH_ENABLE_LAPACK
 int mat3f_svd(const mat3f m, mat3f u, vec3f singular_values, mat3f vt) {
     if (m == NULL || u == NULL || singular_values == NULL || vt == NULL) {
@@ -1053,4 +1130,3 @@ int mat4d_orthonormalize(const mat4d m, mat4d out) {
     memcpy(out, result, sizeof(result));
     return 0;
 }
-

@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <string.h>
 
-
 #define VEC3F_ZERO {0.0f, 0.0f, 0.0f}
 #define VEC4F_ZERO {0.0f, 0.0f, 0.0f, 0.0f}
 #define QUATF_IDENTITY {0.0f, 0.0f, 0.0f, 1.0f}
@@ -100,11 +99,13 @@ void quatf_identity(quatf q);
 int quatf_normalize(quatf q);
 void quatf_to_mat3f(const quatf q, mat3f m);
 void quatf_from_mat3f(const mat3f m, quatf q);
+void quatf_slerp(const quatf start, const quatf end, float t, quatf out);
 
 void quatd_identity(quatd q);
 int quatd_normalize(quatd q);
 void quatd_to_mat3d(const quatd q, mat3d m);
 void quatd_from_mat3d(const mat3d m, quatd q);
+void quatd_slerp(const quatd start, const quatd end, double t, quatd out);
 
 /* MAT3D */
 void mat3f_identity(mat3f m);
