@@ -253,7 +253,6 @@ void quatd_from_mat3d(const mat3d m, quatd q) {
     }
 }
 
-
 void quatf_slerp(const quatf start, const quatf end, float t, quatf out) {
     quatf a;
     memcpy(a, start, sizeof(a));
@@ -492,6 +491,65 @@ void mat3d_from_quatd(const quatd q, mat3d m) {
     m[6] = 2.0 * (xz + wy);
     m[7] = 2.0 * (yz - wx);
     m[8] = 1.0 - 2.0 * (xx + yy);
+}
+
+int mat3d_from_rotation_vector(const vec3d omega, mat3d out) {
+    if (omega == NULL || out == NULL) return -1;
+    for (size_t i = 0; i < 3; ++i) {
+        if (!isfinite(omega[i])) {
+            return -1;
+        }
+    }
+
+    const double theta = hypot(hypot(omega[0], omega[1]), omega[2]);
+    if (!isfinite(theta)) {
+        return -1;
+    }
+
+    if (theta == 0.0) {
+        mat3d_identity(out);
+        return 0;
+    }
+
+    const double x = omega[0] / theta;
+    const double y = omega[1] / theta;
+    const double z = omega[2] / theta;
+
+    const double sine = sin(theta);
+    const double half_sine = sin(0.5 * theta);
+    const double one_minus_cosine = 2.0 * half_sine * half_sine;
+
+    const double xx = x * x;
+    const double yy = y * y;
+    const double zz = z * z;
+    const double xy = x * y;
+    const double xz = x * z;
+    const double yz = y * z;
+
+    mat3d result;
+    result[0] = 1.0 - one_minus_cosine * (yy + zz);
+    result[1] = one_minus_cosine * xy + sine * z;
+    result[2] = one_minus_cosine * xz - sine * y;
+
+    result[3] = one_minus_cosine * xy - sine * z;
+    result[4] = 1.0 - one_minus_cosine * (xx + zz);
+    result[5] = one_minus_cosine * yz + sine * x;
+
+    result[6] = one_minus_cosine * xz + sine * y;
+    result[7] = one_minus_cosine * yz - sine * x;
+    result[8] = 1.0 - one_minus_cosine * (xx + yy);
+
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(result[i])) {
+            return -1;
+        }
+    }
+
+    for (size_t i = 0; i < 9; ++i) {
+        out[i] = result[i];
+    }
+
+    return 0;
 }
 
 void mat3f_mul_vec3f(const mat3f m, const vec3f v, vec3f out) {

@@ -127,6 +127,7 @@ double mat3d_det(const mat3d m);
 int mat3d_inverse(const mat3d m, mat3d out);
 void mat3d_transpose(const mat3d m, mat3d out);
 void mat3d_from_quatd(const quatd q, mat3d m);
+int mat3d_from_rotation_vector(const vec3d omega, mat3d out);
 void mat3d_mul_vec3d(const mat3d m, const vec3d v, vec3d out);
 int mat3d_orthonormalize(const mat3d m, mat3d out);
 void mat3d_to_quatd(const mat3d m, quatd q);

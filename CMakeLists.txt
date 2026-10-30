@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(arsenal VERSION 0.1.0 LANGUAGES C)
+include(CTest)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -216,11 +217,17 @@ arsenal_add_component(natnet_client
     LIBRARIES Threads::Threads
 )
 
+arsenal_add_component(optimization
+    DIRECTORY optimization
+    SOURCE optimization.c
+    LIBRARIES arsenal_math
+)
+
 if(ARSENAL_BUILD_ALIGNMENT)
     arsenal_add_component(alignment
         DIRECTORY alignment
         SOURCE alignment.c
-        DEPS point_cloud glmath
+        DEPS point_cloud glmath optimization
     )
 endif()
 
@@ -277,3 +284,7 @@ add_custom_target(arsenal_headers ALL
     COMMENT "Gathering Arsenal public headers into ${arsenal_header_output_dir}"
     VERBATIM
 )
+
+if (BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

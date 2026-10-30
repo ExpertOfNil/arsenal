@@ -4,6 +4,19 @@
 #include <math.h>
 
 #include "glmath.h"
+#include "optimization.h"
+
+typedef struct AlignmentNelderMeadContext {
+    const PointCloudd* source;
+    const PointCloudd* target;
+
+    AlignmentTransform initial;
+
+    AlignmentObjective objective;
+    void* user_data;
+
+    AlignmentStatus status;
+} AlignmentNelderMeadContext;
 
 static int point_is_finite(const Point3d* point) {
     return isfinite(point->position[0]) && isfinite(point->position[1]) &&
@@ -142,8 +155,161 @@ static int accumulate_scaled_square(
     return 0;
 }
 
+static AlignmentStatus alignment_transform_from_params(
+    const double params[6],
+    const AlignmentTransform* initial,
+    AlignmentTransform* out
+) {
+    for (size_t i = 0; i < 6; ++i) {
+        if (!isfinite(params[i])) {
+            return ALIGNMENT_NUMERICAL_FAILURE;
+        }
+    }
+
+    const vec3d omega = {params[0], params[1], params[2]};
+
+    mat3d delta_rotation;
+    if (mat3d_from_rotation_vector(omega, delta_rotation) != 0) {
+        return ALIGNMENT_NUMERICAL_FAILURE;
+    }
+
+    AlignmentTransform result;
+    mat3d_mul(delta_rotation, initial->rotation, result.rotation);
+
+    for (size_t i = 0; i < 3; ++i) {
+        result.translation[i] = initial->translation[i] + params[3 + i];
+        if (!isfinite(result.translation[i])) {
+            return ALIGNMENT_NUMERICAL_FAILURE;
+        }
+    }
+
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(result.rotation[i])) {
+            return ALIGNMENT_NUMERICAL_FAILURE;
+        }
+    }
+
+    *out = result;
+    return ALIGNMENT_OK;
+}
+
+static AlignmentStatus alignment_prepare_initial_transform(
+    const AlignmentTransform* initial, AlignmentTransform* out
+) {
+    AlignmentTransform result;
+    if (initial == NULL) {
+        mat3d_identity(result.rotation);
+        for (size_t i = 0; i < 3; ++i) {
+            result.translation[i] = 0.0;
+        }
+
+        *out = result;
+        return ALIGNMENT_OK;
+    }
+
+    result = *initial;
+    for (size_t i = 0; i < 9; ++i) {
+        if (!isfinite(result.rotation[i])) {
+            return ALIGNMENT_INVALID_ARGUMENT;
+        }
+    }
+
+    for (size_t i = 0; i < 3; ++i) {
+        if (!isfinite(result.translation[i])) {
+            return ALIGNMENT_INVALID_ARGUMENT;
+        }
+    }
+
+    /*
+     * Absolute, nondimensional tolerance for double-precision rotation
+     * matrices. This is input validation not optimization stopping tolerance.
+     */
+    const double rotation_tolerance = 1e-10;
+    mat3d transpose;
+    mat3d gram;
+
+    mat3d_transpose(result.rotation, transpose);
+    mat3d_mul(transpose, result.rotation, gram);
+
+    for (size_t col = 0; col < 3; ++col) {
+        for (size_t row = 0; row < 3; ++row) {
+            const size_t index = row + 3 * col;
+            const double expected = row == col ? 1.0 : 0.0;
+
+            if (!isfinite(gram[index]) ||
+                fabs(gram[index] - expected) > rotation_tolerance) {
+                return ALIGNMENT_INVALID_ARGUMENT;
+            }
+        }
+    }
+
+    const double determinant = mat3d_det(result.rotation);
+
+    if (!isfinite(determinant) ||
+        fabs(determinant - 1.0) > rotation_tolerance) {
+        return ALIGNMENT_INVALID_ARGUMENT;
+    }
+
+    *out = result;
+    return ALIGNMENT_OK;
+}
+
+static OptimizationEval alignment_nelder_mead_evaluate(
+    const double* params, size_t param_count, void* user_data, double* out_value
+) {
+    AlignmentNelderMeadContext* context = user_data;
+
+    if (param_count != 6) {
+        context->status = ALIGNMENT_NUMERICAL_FAILURE;
+        return OPTIMIZATION_EVAL_FAILED;
+    }
+
+    AlignmentTransform transform;
+
+    context->status =
+        alignment_transform_from_params(params, &context->initial, &transform);
+    if (context->status != ALIGNMENT_OK) {
+        return OPTIMIZATION_EVAL_FAILED;
+    }
+
+    return context->objective(
+        context->source,
+        context->target,
+        &transform,
+        context->user_data,
+        out_value
+    );
+}
+
+static AlignmentStatus alignment_status_from_optimization(
+    OptimizationStatus status
+) {
+    switch (status) {
+        case OPTIMIZATION_OK:
+            return ALIGNMENT_OK;
+        case OPTIMIZATION_INVALID_ARGUMENT:
+            return ALIGNMENT_INVALID_ARGUMENT;
+        case OPTIMIZATION_ALLOCATION_FAILURE:
+            return ALIGNMENT_ALLOCATION_FAILURE;
+        case OPTIMIZATION_OBJECTIVE_FAILURE:
+            return ALIGNMENT_OBJECTIVE_FAILURE;
+        case OPTIMIZATION_NUMERICAL_FAILURE:
+            return ALIGNMENT_NUMERICAL_FAILURE;
+        case OPTIMIZATION_ITERATION_LIMIT:
+            return ALIGNMENT_ITERATION_LIMIT;
+        case OPTIMIZATION_EVALUATION_LIMIT:
+            return ALIGNMENT_EVALUATION_LIMIT;
+        default:
+            return ALIGNMENT_NUMERICAL_FAILURE;
+    }
+}
+
+/* Public Functions */
+
 AlignmentStatus point_cloud_align_kabsch(
-    const PointCloudd* source, const PointCloudd* target, AlignmentTransform* out
+    const PointCloudd* source,
+    const PointCloudd* target,
+    AlignmentTransform* out
 ) {
     if (out == NULL) return ALIGNMENT_INVALID_ARGUMENT;
 
@@ -203,7 +369,9 @@ AlignmentStatus point_cloud_align_kabsch(
 }
 
 AlignmentStatus point_cloud_align_normal_equations(
-    const PointCloudd* source, const PointCloudd* target, AlignmentTransform* out
+    const PointCloudd* source,
+    const PointCloudd* target,
+    AlignmentTransform* out
 ) {
     if (out == NULL) return ALIGNMENT_INVALID_ARGUMENT;
 
@@ -417,7 +585,8 @@ AlignmentStatus alignment_compare_transforms(
     const double skew_z = relative_rotation[1] - relative_rotation[3];
     const double sine = 0.5 * hypot(hypot(skew_x, skew_y), skew_z);
     double cosine = 0.5 * (trace - 1.0);
-    if (!isfinite(sine) || !isfinite(cosine)) return ALIGNMENT_NUMERICAL_FAILURE;
+    if (!isfinite(sine) || !isfinite(cosine))
+        return ALIGNMENT_NUMERICAL_FAILURE;
 
     // Correct floating-point rounding
     if (cosine < -1.0) cosine = -1.0;
@@ -433,4 +602,95 @@ AlignmentStatus alignment_compare_transforms(
 
     *out = result;
     return ALIGNMENT_OK;
+}
+
+AlignmentNelderMeadOptions alignment_nelder_mead_options_default(void) {
+    return (AlignmentNelderMeadOptions){
+        .optimizer = nelder_mead_options_default(),
+        .rotation_steps = {0.05, 0.05, 0.05},
+        .translation_steps = {1.0, 1.0, 1.0},
+    };
+}
+
+AlignmentStatus point_cloud_align_nelder_mead(
+    const PointCloudd* source,
+    const PointCloudd* target,
+    const AlignmentTransform* initial_transform,
+    AlignmentObjective objective,
+    void* user_data,
+    const AlignmentNelderMeadOptions* options,
+    AlignmentTransform* out,
+    NelderMeadResult* out_result
+) {
+    if (objective == NULL || out == NULL) {
+        return ALIGNMENT_INVALID_ARGUMENT;
+    }
+
+    AlignmentStatus status = validate_correspondences(source, target, 3);
+    if (status != ALIGNMENT_OK) {
+        return status;
+    }
+
+    const AlignmentNelderMeadOptions opts =
+        options != NULL ? *options : alignment_nelder_mead_options_default();
+
+    AlignmentNelderMeadContext context = {
+        .source = source,
+        .target = target,
+        .objective = objective,
+        .user_data = user_data,
+        .status = ALIGNMENT_OK,
+    };
+    status = alignment_prepare_initial_transform(
+        initial_transform, &context.initial
+    );
+    if (status != ALIGNMENT_OK) {
+        return status;
+    }
+
+    const double initial_params[6] = {0};
+    const double initial_steps[6] = {
+        opts.rotation_steps[0],
+        opts.rotation_steps[1],
+        opts.rotation_steps[2],
+        opts.translation_steps[0],
+        opts.translation_steps[1],
+        opts.translation_steps[2],
+    };
+    double best_params[6];
+    NelderMeadResult result;
+
+    const OptimizationStatus optimization_status = nelder_mead_minimize(
+        alignment_nelder_mead_evaluate,
+        &context,
+        6,
+        initial_params,
+        initial_steps,
+        &opts.optimizer,
+        best_params,
+        &result
+    );
+    if (context.status != ALIGNMENT_OK) {
+        return context.status;
+    }
+    status = alignment_status_from_optimization(optimization_status);
+    if (status != ALIGNMENT_OK && status != ALIGNMENT_ITERATION_LIMIT &&
+        status != ALIGNMENT_EVALUATION_LIMIT) {
+        return status;
+    }
+
+    AlignmentTransform transform;
+    const AlignmentStatus conversion_status = alignment_transform_from_params(
+        best_params, &context.initial, &transform
+    );
+    if (conversion_status != ALIGNMENT_OK) {
+        return conversion_status;
+    }
+
+    *out = transform;
+    if (out_result != NULL) {
+        *out_result = result;
+    }
+
+    return status;
 }
